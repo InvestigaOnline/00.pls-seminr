@@ -1,0 +1,106 @@
+---
+title: "PLS - Agencias"
+author: "Roberto Gil-Saura"
+date: "2/4/2021"
+output:
+  word_document:
+    toc: yes
+  html_document:
+    highlight: tango
+    number_sections: yes
+    df_print: paged
+    toc: yes
+subtitle: Artículo 2 (versión 1)
+---
+
+NOTA: Modelo completo, pero quitamos LOY3.
+NOTA: Incluye constructo de segundo orden
+
+```{=html}
+<style type="text/css">
+.main-container {
+  max-width: 100%;
+  margin-left: 10px;
+  margin-right: 10px;}
+.p {
+  font-size: 0.8em
+}
+</style>
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, comment=NA, warning=FALSE, message=FALSE)
+suppressMessages(library(readr))
+suppressMessages(library(dplyr))
+suppressMessages(library(plspm))
+suppressMessages(library(matrixpls))
+suppressMessages(library(expss))
+suppressMessages(library(openxlsx))
+suppressMessages(agencias <- read_spss("~/R/r-data/00.pls-seminr/data/agencias_dc.sav"))
+suppressMessages(a.data <- read_delim("~/R/r-data/00.pls-seminr/data/datos.art01.v02bis.csv","\t", escape_double = FALSE, locale = locale(decimal_mark = ",", grouping_mark = ""), trim_ws = TRUE))
+options(width=9999)
+wb = createWorkbook()
+sh = addWorksheet(wb, "Tablas")
+```
+
+# Tablas muestra
+
+```{r}
+
+tab1 <- agencias %>%
+     tab_cells(mrset(P1_1,P1_2), mrset_f(P2_),mrset_f(P3_)) %>% 
+     tab_stat_cases(label='casos') %>%
+     tab_stat_cpct(label='% casos') %>% 
+     tab_pivot(stat_position='inside_columns')
+tab1
+xl_write(tab1, wb, sh)
+tab2 <- agencias %>%
+    tab_cols(total()) %>% 
+     tab_cells(P5) %>%
+     tab_stat_fun(Mean = w_mean, "Sd" = w_sd) %>% 
+     tab_weight(1) %>% 
+     tab_cells(P6*10) %>%
+     tab_stat_fun(Mean = w_mean, "Sd" = w_sd) %>% 
+     tab_pivot()
+tab2
+xl_write(tab2, wb, sh, col=6)
+saveWorkbook(wb, "~/R/r-data/00.pls-seminr/art2-vallejo/tablas.xlsx", overwrite = TRUE)
+```
+
+# Modelización con plspm
+
+
+```{r include=FALSE, warning=FALSE, message=FALSE}
+a.df <- a.data[,1:19]
+
+VCC=c(0,0,0,0,0,0)
+TRUST=c(0,0,0,0,0,0)
+COMMITMENT=c(0,0,0,0,0,0)
+SOCSAT=c(0,0,0,0,0,0)
+RQ=c(1,1,1,1,0,0)
+ECOSAT=c(0,0,0,0,1,0)
+inner=rbind(VCC, TRUST, COMMITMENT,SOCSAT,RQ,ECOSAT)
+colnames(inner)=rownames(inner)
+blocks = list(8:13,1:3,4:7,17:19,c(1:3,4:7,17:19), 14:16)
+modes=c('A','A','A','A','A','A')
+simple_model <- plspm(a.df, inner, blocks, modes, boot.val=T, br=5000)
+plot(simple_model)
+
+reflective <- diag(6)[c(rep(1,6),rep(2,3),rep(3,4),rep(4,3),rep(5,10),rep(6,3)),]
+formative <- matrix(0,6,29)
+colnames(inner) <- colnames(reflective) <- rownames(formative) <- rownames(inner)
+s <- a.df[, c(8:13,1:3,4:7,17:19,1:3, 4:7,17:19,14:16)]
+rownames(reflective) <- colnames(formative) <- colnames(s)
+modelpls <- list(inner = inner, reflective = reflective, formative = formative)
+S <- cov(s)
+simple_model <- matrixpls(S, modelpls, disattenuate = TRUE, parametersReflective = estimator.plscLoadings)
+predictions.blindfold <- matrixpls.crossvalidate(S, 
+                                                 model = modelpls, 
+                                                 blindfold = TRUE, 
+                                                 predictionType = "redundancy", 
+                                                 groups = 7)
+prediction_relevance <- q2(S, predictions.blindfold, model=modelpls)
+prediction_relevance
+
+```
+

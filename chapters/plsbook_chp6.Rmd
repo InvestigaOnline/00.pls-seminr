@@ -5,7 +5,7 @@ date: "`r Sys.Date()`"
 output:
   html_document
 editor_options: 
-  chunk_output_type: console
+  chunk_output_type: inline
 ---
 
 <style type="text/css">
@@ -24,9 +24,7 @@ suppressMessages(library(kableExtra))
 suppressMessages(library(readr))
 suppressMessages(library(dplyr))
 
-setwd("~/R/r-data/00.goal2023")
-suppressMessages(data <- read_delim("data.csv",";", escape_double = FALSE, trim_ws = TRUE))
-corp_rep_data <- data
+corp_rep_data <- corp_rep_data
 ```
 
 ```{r echo = FALSE, messages= FALSE, comment = NA}
@@ -74,24 +72,26 @@ boot_corp_rep_ext <- bootstrap_model(
   cores = parallel::detectCores(),
   seed = 123)
 
-# Summarize the results of the bootstrap
-summary_boot_corp_rep_ext <- summary(boot_corp_rep_ext,
-                                     alpha = 0.05)
+cat("# Summarize the results of the bootstrap")
+summary_boot_corp_rep_ext <- summary(boot_corp_rep_ext,alpha = 0.05)
 
-# Inspect the structural model collinearity VIF
+cat("# Inspect the structural model collinearity VIF")
 summary_corp_rep_ext$vif_antecedents
 
-# Inspect the structural paths
+cat("# Inspect the structural paths")
 summary_boot_corp_rep_ext$bootstrapped_paths
 
-# Inspect the total effects
+cat("# Inspect the total effects")
 summary_boot_corp_rep_ext$bootstrapped_total_paths
 
-# Inspect the model RSquares
+cat("# Inspect the model RSquares")
 summary_corp_rep_ext$paths
 
-# Inspect the effect sizes
+cat("# Inspect the effect sizes")
 summary_corp_rep_ext$fSquare
+
+cat("Plot model")
+plot(boot_corp_rep_ext)
 
 # Generate the model predictions
 predict_corp_rep_ext <- predict_pls(
@@ -112,6 +112,12 @@ par(mfrow=c(1,1))
 
 # Inspect the results of PLSpredict
 sum_predict_corp_rep_ext
+
+
+
+
+
+
 
 # Estimate alternative models
 # Create measurement model ----
@@ -146,6 +152,9 @@ structural_model3 <- relationships(
   paths(from = c("COMP","LIKE"),  to = c("CUSA")),
   paths(from = "CUSA",      to = c("CUSL"))
 )
+plot(structural_model1)
+plot(structural_model2)
+plot(structural_model3)
 
 # Estimate and summarize the models ----
 pls_model1 <- estimate_pls(data  = corp_rep_data,
